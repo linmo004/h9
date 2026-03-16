@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>HALO·九</title>
+<link rel="stylesheet" href="style-main.css">
+<link rel="stylesheet" href="style-modal.css">
+<link rel="stylesheet" href="style-page2.css">
+<link rel="stylesheet" href="settings.css">
+<link rel="stylesheet" href="liao-base.css">
+<link rel="stylesheet" href="liao-chat.css">
+<link rel="stylesheet" href="liao-rolelib.css">
+<link rel="stylesheet" href="liao-myhome.css">
+<link rel="stylesheet" href="liao-suiyan.css">
+<link rel="stylesheet" href="liao-settings.css">
+<link rel="stylesheet" href="liao-special-1.css">
+<link rel="stylesheet" href="liao-special-2.css">
+<link rel="stylesheet" href="lockscreen.css">
+<link rel="stylesheet" href="worldbook.css">
+<link rel="stylesheet" href="garden.css">
+<link rel="stylesheet" href="rolephone.css">
+<link rel="stylesheet" href="rolephone-statusbar.css">
+<link rel="stylesheet" href="page3.css">
+<link rel="stylesheet" href="chess-app.css">
+<link rel="stylesheet" href="batoru.css">
+<link rel="stylesheet" href="liao-cardbook.css">
+<link rel="stylesheet" href="storage-manager.css">
+<link rel="stylesheet" href="liao-schedule.css">
+<link rel="stylesheet" href="liao-autoreply.css">
+<link rel="stylesheet" href="ripple.css">
+<link rel="stylesheet" href="music.css">
+<link rel="stylesheet" href="groupchat.css">
+<link rel="stylesheet" href="couple.css">
+<link rel="stylesheet" href="couple-home.css">
+<link rel="stylesheet" href="couple-radio.css">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="https://unpkg.com/dexie@3/dist/dexie.js"></script>
+</head>
+<body>
+
+<audio id="bg-keepalive" loop style="display:none;">
+  <source src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=" type="audio/wav">
+</audio>
+
+<!-- 片段挂载点 -->
+<div id="partial-lockscreen"></div>
+<div id="partial-main-ui"></div>
+<div id="partial-home-modals"></div>
+<div id="partial-settings-app"></div>
+<div id="partial-liao-app"></div>
+<div id="partial-liao-chat"></div>
+<div id="partial-liao-modals"></div>
+<div id="partial-worldbook"></div>
+<div id="partial-garden-app"></div>
+<div id="partial-rolephone"></div>
+<div id="partial-chess-app"></div>
+<div id="partial-batoru"></div>
+<div id="partial-storage-manager"></div>
+<div id="partial-ripple"></div>
+<div id="partial-music"></div>
+<div id="partial-groupchat"></div>
+<div id="partial-couple"></div>
+<script>
+(function () {
+  const partials = [
+    { id: 'partial-lockscreen',   file: 'lockscreen.html' },
+    { id: 'partial-main-ui',      file: 'main-ui.html' },
+    { id: 'partial-home-modals',  file: 'home-modals.html' },
+    { id: 'partial-settings-app', file: 'settings-app.html' },
+    { id: 'partial-liao-app',     file: 'liao-app.html' },
+    { id: 'partial-liao-chat',    file: 'liao-chat.html' },
+    { id: 'partial-liao-modals',  file: 'liao-modals.html' },
+    { id: 'partial-worldbook',    file: 'worldbook.html' },
+    { id: 'partial-garden-app',   file: 'garden.html' },
+    { id: 'partial-rolephone',    file: 'rolephone.html' },
+    { id: 'partial-chess-app',    file: 'chess-app.html' },
+    { id: 'partial-batoru', file: 'batoru.html' },
+    { id: 'partial-storage-manager', file: 'storage-manager.html' },
+    { id: 'partial-ripple', file: 'ripple.html' },
+    { id: 'partial-music',           file: 'music.html' },
+    { id: 'partial-groupchat', file: 'groupchat.html' },
+    { id: 'partial-couple', file: 'couple.html' },
+  ];
+
+  async function loadAll() {
+    for (const p of partials) {
+      const res  = await fetch(p.file);
+      const html = await res.text();
+      document.getElementById(p.id).innerHTML = html;
+    }
+
+    /* main-ui.html 加载完后，page3/page4 挂载点已在 DOM 里，现在注入内容 */
+    await injectPagePartials();
+
+    await initScripts();
+  }
+
+  async function injectPagePartials() {
+    const subPartials = [
+      { id: 'partial-page3', file: 'page3.html' },
+      { id: 'partial-page4', file: 'page4.html' },
+    ];
+    for (const p of subPartials) {
+      const el = document.getElementById(p.id);
+      if (!el) continue;
+      const res  = await fetch(p.file);
+      const html = await res.text();
+      el.innerHTML = html;
+    }
+  }
+
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload  = resolve;
+      s.onerror = reject;
+      document.body.appendChild(s);
+    });
+  }
+
+  async function initScripts() {
+    await loadScript('db-images.js');
+    await loadScript('app.js');
+    await loadScript('settings-1.js');
+    await loadScript('settings-2.js');
+    await loadScript('settings-3.js');
+    await loadScript('liao-core.js');
+    await loadScript('liao-rolelib.js');
+    await loadScript('liao-myhome.js');
+    await loadScript('liao-suiyan.js');
+    await loadScript('liao-chat.js');
+    await loadScript('liao-special.js');
+    await loadScript('liao-emoji.js');
+    await loadScript('liao-schedule.js');
+    await loadScript('liao-memory.js');
+    await loadScript('liao-persona.js');
+    await loadScript('liao-favorites.js');
+    await loadScript('lockscreen.js');
+    await loadScript('worldbook.js');
+    await loadScript('garden-core.js');
+    await loadScript('garden-ui.js');
+    await loadScript('garden-main.js');
+    await loadScript('chess-app.js');
+    await loadScript('rolephone.js');
+    await loadScript('page3.js');
+    await loadScript('batoru.js');
+    await loadScript('liao-cardbook.js');
+    await loadScript('storage-manager.js');
+    await loadScript('liao-autoreply.js');
+    await loadScript('ripple.js');
+    await loadScript('music.js');
+    await loadScript('groupchat.js');
+    await loadScript('couple-core.js');
+    await loadScript('couple-home.js');
+    await loadScript('couple-radio.js');
+    await loadScript('couple-blog.js');
+    await loadScript('couple-album.js');
+    await loadScript('couple-diary.js');
+    await loadScript('couple-anniversary.js');
+    await loadScript('couple-whisper.js');
+    await loadScript('couple-pet.js');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    if (typeof window.initSettings === 'function') window.initSettings();
+  }
+
+  loadAll().catch(err => { console.error('[Partial Loader] 加载失败：', err); });
+})();
+</script>
+</body>
+</html>
