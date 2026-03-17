@@ -507,13 +507,14 @@ function rpOpen(roleId) {
 
   rpApplyWallpaper();
 
-  if (rpCurrentRoleData.pin && rpCurrentRoleData.pin.length === rpPinLength) {
-    rpInitLockscreen();
-    rpShowView('rp-lockscreen-view');
-  } else {
-    rpShowView('rp-home-view');
-    rpInitHome();
-  }
+  var pinVal = (rpCurrentRoleData.pin || '').trim();
+if (pinVal.length === rpPinLength && /^\d{4}$/.test(pinVal)) {
+  rpInitLockscreen();
+  rpShowView('rp-lockscreen-view');
+} else {
+  rpShowView('rp-home-view');
+  rpInitHome();
+}
 
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
