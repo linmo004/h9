@@ -1199,3 +1199,192 @@
 .rp-notes-list,
 .rp-tab-panel,
 .rp-diary-detail-body { scrollbar-width: none; }
+
+/* ================================================================
+   新增 App 图标颜色
+   ================================================================ */
+.rp-icon-dream   { background: linear-gradient(145deg, #5e5ce6, #7d7aff); }
+.rp-icon-album   { background: linear-gradient(145deg, #30b0c7, #32ade6); }
+.rp-icon-music   { background: linear-gradient(145deg, #ff2d55, #ff6b81); }
+.rp-icon-shop    { background: linear-gradient(145deg, #ff9500, #ffb340); }
+.rp-icon-steps   { background: linear-gradient(145deg, #34c759, #30d158); }
+.rp-icon-call    { background: linear-gradient(145deg, #34c759, #30d158); }
+.rp-icon-wallet  { background: linear-gradient(145deg, #ff9500, #ffb340); }
+.rp-icon-drama   { background: linear-gradient(145deg, #bf5af2, #d870f0); }
+.rp-icon-food    { background: linear-gradient(145deg, #ff6b35, #ff8c42); }
+
+/* ================================================================
+   通用列表样式
+   ================================================================ */
+.rp-generic-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+  background: #f2f2f7;
+  scrollbar-width: none;
+}
+.rp-generic-list::-webkit-scrollbar { display: none; }
+
+.rp-generic-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #fff;
+  border-bottom: 0.5px solid rgba(0,0,0,0.06);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.rp-generic-item:active { background: #f2f2f7; }
+
+.rp-generic-item-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.rp-generic-item-main { flex: 1; min-width: 0; }
+
+.rp-generic-item-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: #000;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rp-generic-item-sub {
+  font-size: 12px;
+  color: #8e8e93;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rp-generic-item-right {
+  font-size: 13px;
+  color: #3a3a3c;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.rp-text-muted { color: #8e8e93; }
+
+/* 音乐/购物/追剧/外卖小图标 */
+.rp-icon-music-sm  { background: linear-gradient(145deg, #ff2d55, #ff6b81); }
+.rp-icon-shop-sm   { background: linear-gradient(145deg, #ff9500, #ffb340); }
+.rp-icon-drama-sm  { background: linear-gradient(145deg, #bf5af2, #d870f0); }
+.rp-icon-food-sm   { background: linear-gradient(145deg, #ff6b35, #ff8c42); }
+
+/* 通话记录图标 */
+.rp-call-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ================================================================
+   相册网格
+   ================================================================ */
+.rp-album-grid {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+  background: #f2f2f7;
+  align-content: start;
+  scrollbar-width: none;
+}
+.rp-album-grid::-webkit-scrollbar { display: none; }
+
+.rp-album-card {
+  background: #fff;
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 8px 8px;
+  gap: 4px;
+  transition: opacity 0.12s;
+}
+.rp-album-card:active { opacity: 0.7; }
+
+.rp-album-card-thumb {
+  width: 100%;
+  aspect-ratio: 1;
+  background: #f2f2f7;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rp-album-card-desc {
+  font-size: 10px;
+  color: #3a3a3c;
+  text-align: center;
+  line-height: 1.4;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rp-album-card-date { font-size: 10px; color: #aeaeb2; }
+
+.rp-album-detail-scene {
+  font-size: 16px;
+  color: #1c1c1e;
+  line-height: 1.9;
+  white-space: pre-wrap;
+  word-break: break-word;
+  padding: 4px 0;
+}
+
+/* ================================================================
+   Dock 返回按钮修正
+   ================================================================ */
+.rp-dock-back {
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.06);
+  transition: background 0.12s;
+}
+.rp-dock-back:active { background: rgba(0,0,0,0.14); }
+
+/* ================================================================
+   lucide 图标在按钮内对齐修正
+   ================================================================ */
+.rp-back-btn i,
+.rp-topbar-right-btn i,
+.rp-widget-add-btn i {
+  display: block;
+  pointer-events: none;
+}
+
+.rp-back-btn,
+.rp-topbar-right-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
