@@ -562,24 +562,8 @@ function rpInitLockscreen() {
   if (avatarEl && rpCurrentRole) avatarEl.src = rpCurrentRole.avatar || '';
   if (nameEl   && rpCurrentRole) nameEl.textContent = rpCurrentRole.nickname || rpCurrentRole.realname || '角色';
 
-  rpUpdateLsTime();
-  if (rpClockTimer) clearInterval(rpClockTimer);
-  rpClockTimer = setInterval(rpUpdateLsTime, 10000);
-
   rpRenderPinDots();
   rpClearPinError();
-}
-
-function rpUpdateLsTime() {
-  var now = new Date();
-  var h   = String(now.getHours()).padStart(2, '0');
-  var m   = String(now.getMinutes()).padStart(2, '0');
-  var mo  = now.getMonth() + 1;
-  var d   = now.getDate();
-  var timeEl = document.getElementById('rp-ls-time');
-  var dateEl = document.getElementById('rp-ls-date');
-  if (timeEl) timeEl.textContent = h + ':' + m;
-  if (dateEl) dateEl.textContent = mo + '月' + d + '日';
 }
 
 function rpRenderPinDots() {
