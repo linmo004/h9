@@ -1,6 +1,320 @@
 /* ============================================================
    rolephone.js — 角色手机 App 完整逻辑
    ============================================================ */
+/* ================================================================
+   统一按钮点击分发（解决 lucide 图标子元素拦截问题）
+   ================================================================ */
+document.addEventListener('click', function (e) {
+  if (!e.target || !e.target.closest) return;
+
+  /* Dock：主页 */
+  if (e.target.closest('#rp-dock-home-btn')) {
+    rpShowView('rp-home-view');
+    rpInitHome();
+    return;
+  }
+
+  /* Dock：关闭 */
+  if (e.target.closest('#rp-dock-back-btn')) {
+    rpClose();
+    return;
+  }
+
+  /* Dock：通话记录 */
+  if (e.target.closest('#rp-dock-call-btn')) {
+    rpShowView('rp-call-view');
+    rpInitCallApp();
+    return;
+  }
+
+  /* 屏幕健康 + */
+  if (e.target.closest('#rp-health-add-btn')) {
+    if (!rpCurrentRole) { alert('角色信息未加载'); return; }
+    var roleName    = rpCurrentRole.nickname || rpCurrentRole.realname || '角色';
+    var roleSetting = rpCurrentRole.setting || '';
+    var extraLimit  = (rpCurrentRoleData.appPromptLimits && rpCurrentRoleData.appPromptLimits.health) || '';
+    var systemPrompt =
+      '你扮演角色' + roleName + '，' + roleSetting + '。\n' +
+      (extraLimit ? '额外要求：' + extraLimit + '\n' : '') +
+      '请生成角色今天使用手机各App的时长数据，6到10个App，总时长不超过8小时。\n' +
+      '请直接输出一个JSON数组，格式如下，不要输出任何其他内容：\n' +
+      '[{"name":"微信","icon":"💬","minutes":87},{"name":"抖音","icon":"🎵","minutes":45}]';
+    rpShowLoading();
+    rpCallAPI([{ role: 'system', content: systemPrompt }],
+      function (raw) {
+        rpHideLoading();
+        var apps = rpExtractJSON(raw, 'array');
+        if (!apps || !apps.length) { alert('生成失败，请重试'); return; }
+        var today = new Date().toDateString();
+        var records = rpCurrentRoleData.screenHealth || [];
+        var existIdx = records.findIndex(function (r) { return r.date === today; });
+        var newRecord = { date: today, apps: apps };
+        if (existIdx >= 0) records[existIdx] = newRecord; else records.unshift(newRecord);
+        rpCurrentRoleData.screenHealth = records;
+        rpSave(rpCurrentRoleId, rpCurrentRoleData);
+        rpRenderHealthData();
+      },
+      function (err) { rpHideLoading(); alert('API 请求失败：' + err); }
+    );
+    return;
+  }
+
+  /* 梦境 + */
+  if (e.target.closest('#rp-dream-add-btn')) {
+    if (!rpCurrentRole) { alert('角色信息未加载'); return; }
+    var roleName    = rpCurrentRole.nickname || rpCurrentRole.realname || '角色';
+    var roleSetting = rpCurrentRole.setting || '';
+    var now = new Date();
+    var dateStr = now.getFullYear() + '年' + (now.getMonth()+1) + '月' + now.getDate() + '日';
+    var systemPrompt =
+      '你扮演角色' + roleName + '，' + roleSetting + '。\n' +
+      '请以角色第一人称生成一段昨晚的梦境记录，200字左右，意象丰富，贴合角色性格。\n' +
+      '只输出一个JSON对象，格式：{"title":"梦境标题一句话","date":"' + dateStr + '","mood":"醒来的心情一词","content":"梦境正文"}\n' +
+      '不输出任何其他内容。';
+    rpShowLoading();
+    rpCallAPI([{ role: 'system', content: systemPrompt }],
+      function (raw) {
+        rpHideLoading();
+        var parsed = rpExtractJSON(raw, 'object');
+        if (!parsed || !parsed.content) { alert('生成失败，请重试'); return; }
+        rpCurrentRoleData.dreams.unshift({
+          id: 'dream_' + Date.now(), title: parsed.title || '梦境',
+          date: parsed.date || dateStr, mood: parsed.mood || '',
+          content: parsed.content || '', ts: Date.now()
+        });
+        rpSave(rpCurrentRoleId, rpCurrentRoleData);
+        rpRenderDreamList();
+      },
+      function (err) { rpHideLoading(); alert('API 请求失败：' + err); }
+    );
+    return;
+  }
+
+  /* 相册 + */
+  if (e.target.closest('#rp-album-add-btn')) {
+    if (!rpCurrentRole) { alert('角色信息未加载'); return; }
+    var roleName    = rpCurrentRole.nickname || rpCurrentRole.realname || '角色';
+    var roleSetting = rpCurrentRole.setting || '';
+    var now = new Date();
+    var dateStr = now.getFullYear() + '.' + (now.getMonth()+1) + '.' + now.getDate();
+    var systemPrompt =
+      '你扮演角色' + roleName + '，' + roleSetting + '。\n' +
+      '请生成角色手机相册中3张照片的描述，贴合角色生活场景。\n' +
+      '只输出JSON数组，每个元素格式：{"date":"拍摄日期如2025.3.10","scene":"照片场景描述50字以内"}\n' +
+      '不输出任何其他内容。';
+    rpShowLoading();
+    rpCallAPI([{ role: 'system', content: systemPrompt }],
+      function (raw) {
+        rpHideLoading();
+        var parsed = rpExtractJSON(raw, 'array');
+        if (!parsed || !parsed.length) { alert('生成失败，请重试'); return; }
+        parsed.forEach(function (p) {
+          rpCurrentRoleData.album.unshift({
+            id: 'photo_' + Date.now() + '_' + Math.random().toString(36).slice(2),
+            date: p.date || dateStr, scene: p.scene || '', ts: Date.now()
+          });
+        });
+        rpSave(rpCurrentRoleId, rpCurrentRoleData);
+        rpRenderAlbumGrid();
+      },
+      function (err) { rpHideLoading(); alert('API 请求失败：' + err); }
+    );
+    return;
+  }
+
+  /* 音乐 + */
+  if (e.target.closest('#rp-music-add-btn')) {
+    if (!rpCurrentRole) { alert('角色信息未加载'); return; }
+    var roleName    = rpCurrentRole.nickname || rpCurrentRole.realname || '角色';
+    var roleSetting = rpCurrentRole.setting || '';
+    var systemPrompt =
+      '你扮演角色' + roleName + '，' + roleSetting + '。\n' +
+      '请生成角色最近在听的8到10首歌，贴合角色性格和情感状态。\n' +
+      '只输出JSON数组，每个元素格式：{"title":"歌曲名","artist":"歌手名","duration":"时长如3:42"}\n' +
+      '不输出任何其他内容。';
+    rpShowLoading();
+    rpCallAPI([{ role: 'system', content: systemPrompt }],
+      function (raw) {
+        rpHideLoading();
+        var parsed = rpExtractJSON(raw, 'array');
+        if (!parsed || !parsed.length) { alert('生成失败，请重试'); return; }
+        rpCurrentRoleData.music = parsed.map(function (s) {
+          return { title: s.title || '', artist: s.artist || '', duration: s.duration || '' };
+        });
+        rpSave(rpCurrentRoleId, rpCurrentRoleData);
+        rpRenderMusicList();
+      },
+      function (err) { rpHideLoading(); alert('API 请求失败：' + err); }
+    );
+    return;
+  }
+
+  /* 购物车 + */
+  if (e.target.closest('#rp-shop-add-btn')) {
+    if (!rpCurrentRole) { alert('角色信息未加载'); return; }
+    var roleName    = rpCurrentRole.nickname || rpCurrentRole.realname || '角色';
+    var roleSetting = rpCurrentRole.setting || '';
+    var systemPrompt =
+      '你扮演角色' + roleName + '，' + roleSetting + '。\n' +
+      '请生成角色购物车里5到8件商品，贴合角色消费偏好和生活状态。\n' +
+      '只输出JSON数组，每个元素格式：{"name":"商品名","price":"价格数字字符串","note":"简短备注如加购原因"}\n' +
+      '不输出任何其他内容。';
+    rpShowLoading();
+    rpCallAPI([{ role: 'system', content: systemPrompt }],
+      function (raw) {
+        rpHideLoading();
+        var parsed = rpExtractJSON(raw, 'array');
+        if (!parsed || !parsed.length) { alert('生成失败，请重试'); return; }
+        rpCurrentRoleData.shop = parsed.map(function (s) {
+          return { name: s.name || '', price: s.price || '0', note: s.note || '' };
+        });
+        rpSave(rpCurrentRoleId, rpCurrentRoleData);
+        rpRenderShopList();
+      },
+      function (err) { rpHideLoading(); alert('API 请求失败：' + err); }
+    );
+    return;
+  }
+
+  /* 步数 + */
+  if (e.target.closest('#rp-steps-add-btn')) {
+    if (!rpCurrentRole) { alert('角色信息未加载'); return; }
+    var roleName    = rpCurrentRole.nickname || rpCurrentRole.realname || '角色';
+    var roleSetting = rpCurrentRole.setting || '';
+    var systemPrompt =
+      '你扮演角色' + roleName + '，' + roleSetting + '。\n' +
+      '请生成角色今天的运动步数数据，贴合角色的生活习惯和性格。\n' +
+      '只输出一个JSON对象，格式：{"steps":总步数整数,"distance":"公里数保留1位小数","calories":"卡路里整数","periods":[{"label":"时段描述如早晨散步","steps":步数整数}]}\n' +
+      'periods生成3到5个时段，不输出任何其他内容。';
+    rpShowLoading();
+    rpCallAPI([{ role: 'system', content: systemPrompt }],
+      function (raw) {
+        rpHideLoading();
+        var parsed = rpExtractJSON(raw, 'object');
+        if (!parsed || !parsed.steps) { alert('生成失败，请重试'); return; }
+        var today = new Date().toDateString();
+        var records = rpCurrentRoleData.steps || [];
+        var existIdx = records.findIndex(function (r) { return r.date === today; });
+        var newRec = { date: today, steps: parsed.steps || 0, distance: parsed.distance || '0', calories: parsed.calories || '0', periods: parsed.periods || [] };
+        if (existIdx >= 0) records[existIdx] = newRec; else records.unshift(newRec);
+        rpCurrentRoleData.steps = records;
+        rpSave(rpCurrentRoleId, rpCurrentRoleData);
+        rpRenderStepsData();
+      },
+      function (err) { rpHideLoading(); alert('API 请求失败：' + err); }
+    );
+    return;
+  }
+
+  /* 通话记录 + */
+  if (e.target.closest('#rp-call-add-btn')) {
+    if (!rpCurrentRole) { alert('角色信息未加载'); return; }
+    var roleName    = rpCurrentRole.nickname || rpCurrentRole.realname || '角色';
+    var roleSetting = rpCurrentRole.setting || '';
+    var systemPrompt =
+      '你扮演角色' + roleName + '，' + roleSetting + '。\n' +
+      '请生成角色最近的8到12条通话记录，透露角色的社交关系。\n' +
+      '只输出JSON数组，每个元素格式：{"name":"联系人名","relation":"关系如同学朋友妈妈等","type":"incoming或outgoing或missed","time":"时间如今天14:32","duration":"时长如2分14秒，missed类型留空"}\n' +
+      '不输出任何其他内容。';
+    rpShowLoading();
+    rpCallAPI([{ role: 'system', content: systemPrompt }],
+      function (raw) {
+        rpHideLoading();
+        var parsed = rpExtractJSON(raw, 'array');
+        if (!parsed || !parsed.length) { alert('生成失败，请重试'); return; }
+        rpCurrentRoleData.calls = parsed.map(function (c) {
+          return { name: c.name || '', relation: c.relation || '', type: c.type || 'incoming', time: c.time || '', duration: c.duration || '' };
+        });
+        rpSave(rpCurrentRoleId, rpCurrentRoleData);
+        rpRenderCallList();
+      },
+      function (err) { rpHideLoading(); alert('API 请求失败：' + err); }
+    );
+    return;
+  }
+
+  /* 钱包 + */
+  if (e.target.closest('#rp-wallet-add-btn')) {
+    if (!rpCurrentRole) { alert('角色信息未加载'); return; }
+    var roleName    = rpCurrentRole.nickname || rpCurrentRole.realname || '角色';
+    var roleSetting = rpCurrentRole.setting || '';
+    var systemPrompt =
+      '你扮演角色' + roleName + '，' + roleSetting + '。\n' +
+      '请生成角色本月8到12条账单流水，透露角色的经济状况和生活细节。\n' +
+      '只输出JSON数组，每个元素格式：{"desc":"账单描述","amount":"金额数字字符串","type":"expense或income","time":"时间如3月15日 14:22"}\n' +
+      '不输出任何其他内容。';
+    rpShowLoading();
+    rpCallAPI([{ role: 'system', content: systemPrompt }],
+      function (raw) {
+        rpHideLoading();
+        var parsed = rpExtractJSON(raw, 'array');
+        if (!parsed || !parsed.length) { alert('生成失败，请重试'); return; }
+        rpCurrentRoleData.wallet = parsed.map(function (b) {
+          return { desc: b.desc || '', amount: b.amount || '0', type: b.type || 'expense', time: b.time || '' };
+        });
+        rpSave(rpCurrentRoleId, rpCurrentRoleData);
+        rpRenderWalletList();
+      },
+      function (err) { rpHideLoading(); alert('API 请求失败：' + err); }
+    );
+    return;
+  }
+
+  /* 追剧 + */
+  if (e.target.closest('#rp-drama-add-btn')) {
+    if (!rpCurrentRole) { alert('角色信息未加载'); return; }
+    var roleName    = rpCurrentRole.nickname || rpCurrentRole.realname || '角色';
+    var roleSetting = rpCurrentRole.setting || '';
+    var systemPrompt =
+      '你扮演角色' + roleName + '，' + roleSetting + '。\n' +
+      '请生成角色正在追的3到5部剧或动漫，贴合角色性格和喜好。\n' +
+      '只输出JSON数组，每个元素格式：{"title":"剧名","watched":已看集数整数,"total":总集数整数,"status":"追剧状态如追更中或已完结"}\n' +
+      '不输出任何其他内容。';
+    rpShowLoading();
+    rpCallAPI([{ role: 'system', content: systemPrompt }],
+      function (raw) {
+        rpHideLoading();
+        var parsed = rpExtractJSON(raw, 'array');
+        if (!parsed || !parsed.length) { alert('生成失败，请重试'); return; }
+        rpCurrentRoleData.drama = parsed.map(function (d) {
+          return { title: d.title || '', watched: d.watched || 0, total: d.total || 0, status: d.status || '' };
+        });
+        rpSave(rpCurrentRoleId, rpCurrentRoleData);
+        rpRenderDramaList();
+      },
+      function (err) { rpHideLoading(); alert('API 请求失败：' + err); }
+    );
+    return;
+  }
+
+  /* 外卖 + */
+  if (e.target.closest('#rp-food-add-btn')) {
+    if (!rpCurrentRole) { alert('角色信息未加载'); return; }
+    var roleName    = rpCurrentRole.nickname || rpCurrentRole.realname || '角色';
+    var roleSetting = rpCurrentRole.setting || '';
+    var systemPrompt =
+      '你扮演角色' + roleName + '，' + roleSetting + '。\n' +
+      '请生成角色最近5到8条外卖订单记录，贴合角色的饮食习惯和生活状态。\n' +
+      '只输出JSON数组，每个元素格式：{"shop":"店铺名","items":"点的菜品简述","amount":"金额数字字符串","time":"时间如昨天12:30"}\n' +
+      '不输出任何其他内容。';
+    rpShowLoading();
+    rpCallAPI([{ role: 'system', content: systemPrompt }],
+      function (raw) {
+        rpHideLoading();
+        var parsed = rpExtractJSON(raw, 'array');
+        if (!parsed || !parsed.length) { alert('生成失败，请重试'); return; }
+        rpCurrentRoleData.food = parsed.map(function (o) {
+          return { shop: o.shop || '', items: o.items || '', amount: o.amount || '0', time: o.time || '' };
+        });
+        rpSave(rpCurrentRoleId, rpCurrentRoleData);
+        rpRenderFoodList();
+      },
+      function (err) { rpHideLoading(); alert('API 请求失败：' + err); }
+    );
+    return;
+  }
+
+});
 
 /* ================================================================
    数据工具函数
@@ -427,9 +741,8 @@ function rpRenderPolaroid() {
 
 /* 主页备忘录 + 按钮：AI生成备忘内容 */
 document.addEventListener('click', function (e) {
-  if (!e.target || e.target.id !== 'rp-memo-add-btn') return;
-  var hw = document.getElementById('rp-home-view');
-  if (!hw || hw.style.display === 'none') return;
+  var btn = e.target.closest ? e.target.closest('#rp-memo-add-btn') : null;
+  if (!btn && e.target.id !== 'rp-memo-add-btn') return;
   if (!rpCurrentRole) { alert('角色信息未加载'); return; }
 
   var roleName    = rpCurrentRole.nickname || rpCurrentRole.realname || '角色';
@@ -509,18 +822,6 @@ document.addEventListener('click', function (e) {
   if (app === 'drama')  { rpShowView('rp-drama-view');  rpInitDramaApp(); }
   if (app === 'food')   { rpShowView('rp-food-view');   rpInitFoodApp(); }
 });
-
-
-/* Dock 按钮 */
-document.addEventListener('click', function (e) {
-  if (e.target && (e.target.id === 'rp-dock-call-btn' || e.target.closest('#rp-dock-call-btn'))) {
-    var hw = document.getElementById('rp-home-view');
-    if (!hw || hw.style.display === 'none') return;
-    rpShowView('rp-call-view');
-    rpInitCallApp();
-  }
-});
-
 
 /* ================================================================
    通用返回按钮
@@ -772,21 +1073,18 @@ document.addEventListener('click', function (e) {
 
 /* 便签 + 按钮：根据当前Tab分别处理 */
 document.addEventListener('click', function (e) {
-  if (!e.target || e.target.id !== 'rp-notes-add-btn') return;
-  var notesView = document.getElementById('rp-notes-view');
-  if (!notesView || notesView.style.display === 'none') return;
+  var btn = e.target.closest ? e.target.closest('#rp-notes-add-btn') : null;
+  if (!btn && e.target.id !== 'rp-notes-add-btn') return;
 
   if (rpCurrentNotesTab === 'rp-todo-tab') {
-    /* 待办：手动输入弹窗 */
     rpShowTodoModal();
   } else if (rpCurrentNotesTab === 'rp-diary-tab') {
-    /* 日记：AI生成 */
     rpGenerateDiary();
   } else if (rpCurrentNotesTab === 'rp-memo-tab') {
-    /* 随记：AI生成 */
     rpGenerateMemo();
   }
 });
+
 
 
 /* ---- 待办（内联弹窗） ---- */
@@ -1117,48 +1415,7 @@ function rpRenderHealthData() {
   });
 }
 
-/* 屏幕健康 + 按钮 */
-document.addEventListener('click', function (e) {
-  if (e.target && e.target.id === 'rp-health-add-btn') {
-    var hv = document.getElementById('rp-health-view');
-    if (!hv || hv.style.display === 'none') return;
-    if (!rpCurrentRole) { alert('角色信息未加载'); return; }
 
-    var roleName    = rpCurrentRole.nickname || rpCurrentRole.realname || '角色';
-    var roleSetting = rpCurrentRole.setting || '';
-    var extraLimit  = (rpCurrentRoleData.appPromptLimits && rpCurrentRoleData.appPromptLimits.health) || '';
-
-    var systemPrompt =
-      '你扮演角色' + roleName + '，' + roleSetting + '。\n' +
-      (extraLimit ? '额外要求：' + extraLimit + '\n' : '') +
-      '请生成角色今天使用手机各App的时长数据，6到10个App，总时长不超过8小时。\n' +
-      '请直接输出一个JSON数组，格式如下，不要输出任何其他内容：\n' +
-      '[{"name":"微信","icon":"💬","minutes":87},{"name":"抖音","icon":"🎵","minutes":45}]';
-
-    rpShowLoading();
-    rpCallAPI(
-      [{ role: 'system', content: systemPrompt }],
-      function (raw) {
-        rpHideLoading();
-        var apps = rpExtractJSON(raw, 'array');
-        if (!apps || !Array.isArray(apps) || !apps.length) {
-          alert('生成失败，请重试');
-          return;
-        }
-        var today    = new Date().toDateString();
-        var records  = rpCurrentRoleData.screenHealth || [];
-        var existIdx = records.findIndex(function (r) { return r.date === today; });
-        var newRecord = { date: today, apps: apps };
-        if (existIdx >= 0) records[existIdx] = newRecord;
-        else records.unshift(newRecord);
-        rpCurrentRoleData.screenHealth = records;
-        rpSave(rpCurrentRoleId, rpCurrentRoleData);
-        rpRenderHealthData();
-      },
-      function (err) { rpHideLoading(); alert('API 请求失败：' + err); }
-    );
-  }
-});
 
 
 /* ================================================================
@@ -1410,42 +1667,6 @@ document.addEventListener('click', function (e) {
   }
 });
 
-document.addEventListener('click', function (e) {
-  if (!e.target || e.target.id !== 'rp-dream-add-btn') return;
-  if (!rpCurrentRole) { alert('角色信息未加载'); return; }
-  var roleName    = rpCurrentRole.nickname || rpCurrentRole.realname || '角色';
-  var roleSetting = rpCurrentRole.setting || '';
-  var now = new Date();
-  var dateStr = now.getFullYear() + '年' + (now.getMonth()+1) + '月' + now.getDate() + '日';
-
-  var systemPrompt =
-    '你扮演角色' + roleName + '，' + roleSetting + '。\n' +
-    '请以角色第一人称生成一段昨晚的梦境记录，200字左右，意象丰富，贴合角色性格。\n' +
-    '只输出一个JSON对象，格式：{"title":"梦境标题一句话","date":"' + dateStr + '","mood":"醒来的心情一词","content":"梦境正文"}\n' +
-    '不输出任何其他内容。';
-
-  rpShowLoading();
-  rpCallAPI(
-    [{ role: 'system', content: systemPrompt }],
-    function (raw) {
-      rpHideLoading();
-      var parsed = rpExtractJSON(raw, 'object');
-      if (!parsed || !parsed.content) { alert('生成失败，请重试'); return; }
-      rpCurrentRoleData.dreams.unshift({
-        id:      'dream_' + Date.now(),
-        title:   parsed.title   || '梦境',
-        date:    parsed.date    || dateStr,
-        mood:    parsed.mood    || '',
-        content: parsed.content || '',
-        ts:      Date.now()
-      });
-      rpSave(rpCurrentRoleId, rpCurrentRoleData);
-      rpRenderDreamList();
-    },
-    function (err) { rpHideLoading(); alert('API 请求失败：' + err); }
-  );
-});
-
 /* ================================================================
    相册 App
    ================================================================ */
@@ -1498,42 +1719,6 @@ document.addEventListener('click', function (e) {
   rpRenderAlbumGrid();
 });
 
-document.addEventListener('click', function (e) {
-  if (!e.target || e.target.id !== 'rp-album-add-btn') return;
-  if (!rpCurrentRole) { alert('角色信息未加载'); return; }
-  var roleName    = rpCurrentRole.nickname || rpCurrentRole.realname || '角色';
-  var roleSetting = rpCurrentRole.setting || '';
-  var now = new Date();
-  var dateStr = now.getFullYear() + '.' + (now.getMonth()+1) + '.' + now.getDate();
-
-  var systemPrompt =
-    '你扮演角色' + roleName + '，' + roleSetting + '。\n' +
-    '请生成角色手机相册中3张照片的描述，贴合角色生活场景。\n' +
-    '只输出JSON数组，每个元素格式：{"date":"拍摄日期如2025.3.10","scene":"照片场景描述50字以内"}\n' +
-    '不输出任何其他内容。';
-
-  rpShowLoading();
-  rpCallAPI(
-    [{ role: 'system', content: systemPrompt }],
-    function (raw) {
-      rpHideLoading();
-      var parsed = rpExtractJSON(raw, 'array');
-      if (!parsed || !parsed.length) { alert('生成失败，请重试'); return; }
-      parsed.forEach(function (p) {
-        rpCurrentRoleData.album.unshift({
-          id:    'photo_' + Date.now() + '_' + Math.random().toString(36).slice(2),
-          date:  p.date  || dateStr,
-          scene: p.scene || '',
-          ts:    Date.now()
-        });
-      });
-      rpSave(rpCurrentRoleId, rpCurrentRoleData);
-      rpRenderAlbumGrid();
-    },
-    function (err) { rpHideLoading(); alert('API 请求失败：' + err); }
-  );
-});
-
 /* ================================================================
    音乐 App
    ================================================================ */
@@ -1567,35 +1752,6 @@ function rpRenderMusicList() {
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
-document.addEventListener('click', function (e) {
-  if (!e.target || e.target.id !== 'rp-music-add-btn') return;
-  if (!rpCurrentRole) { alert('角色信息未加载'); return; }
-  var roleName    = rpCurrentRole.nickname || rpCurrentRole.realname || '角色';
-  var roleSetting = rpCurrentRole.setting || '';
-
-  var systemPrompt =
-    '你扮演角色' + roleName + '，' + roleSetting + '。\n' +
-    '请生成角色最近在听的8到10首歌，贴合角色性格和情感状态。\n' +
-    '只输出JSON数组，每个元素格式：{"title":"歌曲名","artist":"歌手名","duration":"时长如3:42"}\n' +
-    '不输出任何其他内容。';
-
-  rpShowLoading();
-  rpCallAPI(
-    [{ role: 'system', content: systemPrompt }],
-    function (raw) {
-      rpHideLoading();
-      var parsed = rpExtractJSON(raw, 'array');
-      if (!parsed || !parsed.length) { alert('生成失败，请重试'); return; }
-      rpCurrentRoleData.music = parsed.map(function (s) {
-        return { title: s.title || '', artist: s.artist || '', duration: s.duration || '' };
-      });
-      rpSave(rpCurrentRoleId, rpCurrentRoleData);
-      rpRenderMusicList();
-    },
-    function (err) { rpHideLoading(); alert('API 请求失败：' + err); }
-  );
-});
-
 /* ================================================================
    购物车 App
    ================================================================ */
@@ -1628,35 +1784,6 @@ function rpRenderShopList() {
   });
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
-
-document.addEventListener('click', function (e) {
-  if (!e.target || e.target.id !== 'rp-shop-add-btn') return;
-  if (!rpCurrentRole) { alert('角色信息未加载'); return; }
-  var roleName    = rpCurrentRole.nickname || rpCurrentRole.realname || '角色';
-  var roleSetting = rpCurrentRole.setting || '';
-
-  var systemPrompt =
-    '你扮演角色' + roleName + '，' + roleSetting + '。\n' +
-    '请生成角色购物车里5到8件商品，贴合角色消费偏好和生活状态。\n' +
-    '只输出JSON数组，每个元素格式：{"name":"商品名","price":"价格数字字符串","note":"简短备注如加购原因"}\n' +
-    '不输出任何其他内容。';
-
-  rpShowLoading();
-  rpCallAPI(
-    [{ role: 'system', content: systemPrompt }],
-    function (raw) {
-      rpHideLoading();
-      var parsed = rpExtractJSON(raw, 'array');
-      if (!parsed || !parsed.length) { alert('生成失败，请重试'); return; }
-      rpCurrentRoleData.shop = parsed.map(function (s) {
-        return { name: s.name || '', price: s.price || '0', note: s.note || '' };
-      });
-      rpSave(rpCurrentRoleId, rpCurrentRoleData);
-      rpRenderShopList();
-    },
-    function (err) { rpHideLoading(); alert('API 请求失败：' + err); }
-  );
-});
 
 /* ================================================================
    步数 App
@@ -1699,45 +1826,6 @@ function rpRenderStepsData() {
   });
 }
 
-document.addEventListener('click', function (e) {
-  if (!e.target || e.target.id !== 'rp-steps-add-btn') return;
-  if (!rpCurrentRole) { alert('角色信息未加载'); return; }
-  var roleName    = rpCurrentRole.nickname || rpCurrentRole.realname || '角色';
-  var roleSetting = rpCurrentRole.setting || '';
-
-  var systemPrompt =
-    '你扮演角色' + roleName + '，' + roleSetting + '。\n' +
-    '请生成角色今天的运动步数数据，贴合角色的生活习惯和性格。\n' +
-    '只输出一个JSON对象，格式：{"steps":总步数整数,"distance":"公里数保留1位小数","calories":"卡路里整数","periods":[{"label":"时段描述如早晨散步","steps":步数整数}]}\n' +
-    'periods生成3到5个时段，不输出任何其他内容。';
-
-  rpShowLoading();
-  rpCallAPI(
-    [{ role: 'system', content: systemPrompt }],
-    function (raw) {
-      rpHideLoading();
-      var parsed = rpExtractJSON(raw, 'object');
-      if (!parsed || !parsed.steps) { alert('生成失败，请重试'); return; }
-      var today   = new Date().toDateString();
-      var records = rpCurrentRoleData.steps || [];
-      var existIdx = records.findIndex(function (r) { return r.date === today; });
-      var newRec = {
-        date:      today,
-        steps:     parsed.steps     || 0,
-        distance:  parsed.distance  || '0',
-        calories:  parsed.calories  || '0',
-        periods:   parsed.periods   || []
-      };
-      if (existIdx >= 0) records[existIdx] = newRec;
-      else records.unshift(newRec);
-      rpCurrentRoleData.steps = records;
-      rpSave(rpCurrentRoleId, rpCurrentRoleData);
-      rpRenderStepsData();
-    },
-    function (err) { rpHideLoading(); alert('API 请求失败：' + err); }
-  );
-});
-
 /* ================================================================
    通话记录 App
    ================================================================ */
@@ -1775,41 +1863,6 @@ function rpRenderCallList() {
   });
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
-
-document.addEventListener('click', function (e) {
-  if (!e.target || e.target.id !== 'rp-call-add-btn') return;
-  if (!rpCurrentRole) { alert('角色信息未加载'); return; }
-  var roleName    = rpCurrentRole.nickname || rpCurrentRole.realname || '角色';
-  var roleSetting = rpCurrentRole.setting || '';
-
-  var systemPrompt =
-    '你扮演角色' + roleName + '，' + roleSetting + '。\n' +
-    '请生成角色最近的8到12条通话记录，透露角色的社交关系。\n' +
-    '只输出JSON数组，每个元素格式：{"name":"联系人名","relation":"关系如同学朋友妈妈等","type":"incoming或outgoing或missed","time":"时间如今天14:32","duration":"时长如2分14秒，missed类型留空"}\n' +
-    '不输出任何其他内容。';
-
-  rpShowLoading();
-  rpCallAPI(
-    [{ role: 'system', content: systemPrompt }],
-    function (raw) {
-      rpHideLoading();
-      var parsed = rpExtractJSON(raw, 'array');
-      if (!parsed || !parsed.length) { alert('生成失败，请重试'); return; }
-      rpCurrentRoleData.calls = parsed.map(function (c) {
-        return {
-          name:     c.name     || '',
-          relation: c.relation || '',
-          type:     c.type     || 'incoming',
-          time:     c.time     || '',
-          duration: c.duration || ''
-        };
-      });
-      rpSave(rpCurrentRoleId, rpCurrentRoleData);
-      rpRenderCallList();
-    },
-    function (err) { rpHideLoading(); alert('API 请求失败：' + err); }
-  );
-});
 
 /* ================================================================
    钱包 App
@@ -1851,35 +1904,6 @@ function rpRenderWalletList() {
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
-document.addEventListener('click', function (e) {
-  if (!e.target || e.target.id !== 'rp-wallet-add-btn') return;
-  if (!rpCurrentRole) { alert('角色信息未加载'); return; }
-  var roleName    = rpCurrentRole.nickname || rpCurrentRole.realname || '角色';
-  var roleSetting = rpCurrentRole.setting || '';
-
-  var systemPrompt =
-    '你扮演角色' + roleName + '，' + roleSetting + '。\n' +
-    '请生成角色本月8到12条账单流水，透露角色的经济状况和生活细节。\n' +
-    '只输出JSON数组，每个元素格式：{"desc":"账单描述","amount":"金额数字字符串","type":"expense或income","time":"时间如3月15日 14:22"}\n' +
-    '不输出任何其他内容。';
-
-  rpShowLoading();
-  rpCallAPI(
-    [{ role: 'system', content: systemPrompt }],
-    function (raw) {
-      rpHideLoading();
-      var parsed = rpExtractJSON(raw, 'array');
-      if (!parsed || !parsed.length) { alert('生成失败，请重试'); return; }
-      rpCurrentRoleData.wallet = parsed.map(function (b) {
-        return { desc: b.desc || '', amount: b.amount || '0', type: b.type || 'expense', time: b.time || '' };
-      });
-      rpSave(rpCurrentRoleId, rpCurrentRoleData);
-      rpRenderWalletList();
-    },
-    function (err) { rpHideLoading(); alert('API 请求失败：' + err); }
-  );
-});
-
 /* ================================================================
    追剧 App
    ================================================================ */
@@ -1917,35 +1941,6 @@ function rpRenderDramaList() {
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
-document.addEventListener('click', function (e) {
-  if (!e.target || e.target.id !== 'rp-drama-add-btn') return;
-  if (!rpCurrentRole) { alert('角色信息未加载'); return; }
-  var roleName    = rpCurrentRole.nickname || rpCurrentRole.realname || '角色';
-  var roleSetting = rpCurrentRole.setting || '';
-
-  var systemPrompt =
-    '你扮演角色' + roleName + '，' + roleSetting + '。\n' +
-    '请生成角色正在追的3到5部剧或动漫，贴合角色性格和喜好。\n' +
-    '只输出JSON数组，每个元素格式：{"title":"剧名","watched":已看集数整数,"total":总集数整数,"status":"追剧状态如追更中或已完结"}\n' +
-    '不输出任何其他内容。';
-
-  rpShowLoading();
-  rpCallAPI(
-    [{ role: 'system', content: systemPrompt }],
-    function (raw) {
-      rpHideLoading();
-      var parsed = rpExtractJSON(raw, 'array');
-      if (!parsed || !parsed.length) { alert('生成失败，请重试'); return; }
-      rpCurrentRoleData.drama = parsed.map(function (d) {
-        return { title: d.title || '', watched: d.watched || 0, total: d.total || 0, status: d.status || '' };
-      });
-      rpSave(rpCurrentRoleId, rpCurrentRoleData);
-      rpRenderDramaList();
-    },
-    function (err) { rpHideLoading(); alert('API 请求失败：' + err); }
-  );
-});
-
 /* ================================================================
    外卖 App
    ================================================================ */
@@ -1981,35 +1976,6 @@ function rpRenderFoodList() {
   });
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
-
-document.addEventListener('click', function (e) {
-  if (!e.target || e.target.id !== 'rp-food-add-btn') return;
-  if (!rpCurrentRole) { alert('角色信息未加载'); return; }
-  var roleName    = rpCurrentRole.nickname || rpCurrentRole.realname || '角色';
-  var roleSetting = rpCurrentRole.setting || '';
-
-  var systemPrompt =
-    '你扮演角色' + roleName + '，' + roleSetting + '。\n' +
-    '请生成角色最近5到8条外卖订单记录，贴合角色的饮食习惯和生活状态。\n' +
-    '只输出JSON数组，每个元素格式：{"shop":"店铺名","items":"点的菜品简述","amount":"金额数字字符串","time":"时间如昨天12:30"}\n' +
-    '不输出任何其他内容。';
-
-  rpShowLoading();
-  rpCallAPI(
-    [{ role: 'system', content: systemPrompt }],
-    function (raw) {
-      rpHideLoading();
-      var parsed = rpExtractJSON(raw, 'array');
-      if (!parsed || !parsed.length) { alert('生成失败，请重试'); return; }
-      rpCurrentRoleData.food = parsed.map(function (o) {
-        return { shop: o.shop || '', items: o.items || '', amount: o.amount || '0', time: o.time || '' };
-      });
-      rpSave(rpCurrentRoleId, rpCurrentRoleData);
-      rpRenderFoodList();
-    },
-    function (err) { rpHideLoading(); alert('API 请求失败：' + err); }
-  );
-});
 
 /* ================================================================
    工具函数
