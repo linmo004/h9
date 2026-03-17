@@ -1388,3 +1388,22 @@
   align-items: center;
   justify-content: center;
 }
+/* ================================================================
+   便签选项弹窗按钮
+   ================================================================ */
+.rp-notes-option-btn {
+  width: 100%;
+  background: #f2f2f7;
+  border: none;
+  border-radius: 14px;
+  padding: 14px 16px;
+  font-size: 16px;
+  color: #007aff;
+  cursor: pointer;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: background 0.12s;
+}
+.rp-notes-option-btn:active { background: #e5e5ea; }

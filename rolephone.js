@@ -523,20 +523,17 @@ function rpClose() {
   var app = document.getElementById('rolephone-app');
   if (app) app.style.display = 'none';
   if (rpClockTimer) { clearInterval(rpClockTimer); rpClockTimer = null; }
-}
 
-function rpApplyWallpaper() {
-  var homeView = document.getElementById('rp-home-view');
-  if (!homeView) return;
-  var wp = rpCurrentRoleData.wallpaper || '';
-  if (wp) {
-    homeView.style.backgroundImage    = 'url(' + wp + ')';
-    homeView.style.backgroundSize     = 'cover';
-    homeView.style.backgroundPosition = 'center';
-  } else {
-    homeView.style.backgroundImage = '';
+  /* 确保了了聊天界面仍然可见 */
+  var liaoApp = document.getElementById('liao-app');
+  if (liaoApp && liaoApp.classList.contains('show')) {
+    var chatView = document.getElementById('liao-chat-view');
+    if (chatView && typeof currentChatIdx !== 'undefined' && currentChatIdx >= 0) {
+      chatView.classList.add('show');
+    }
   }
 }
+
 
 /* ================================================================
    锁屏逻辑
@@ -1071,19 +1068,76 @@ document.addEventListener('click', function (e) {
   rpRenderCurrentNotesTab();
 });
 
-/* 便签 + 按钮：根据当前Tab分别处理 */
+/* 便签 + 按钮：弹出选项弹窗 */
 document.addEventListener('click', function (e) {
   var btn = e.target.closest ? e.target.closest('#rp-notes-add-btn') : null;
   if (!btn && e.target.id !== 'rp-notes-add-btn') return;
 
-  if (rpCurrentNotesTab === 'rp-todo-tab') {
+  /* 打开选项弹窗，同时渲染 lucide 图标 */
+  var modal = document.getElementById('rp-notes-option-modal');
+  if (modal) {
+    modal.style.display = 'flex';
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  }
+});
+
+/* 便签选项弹窗：三个选项 + 取消 */
+document.addEventListener('click', function (e) {
+  if (e.target && e.target.id === 'rp-notes-opt-cancel') {
+    var modal = document.getElementById('rp-notes-option-modal');
+    if (modal) modal.style.display = 'none';
+    return;
+  }
+
+  /* 点遮罩关闭 */
+  if (e.target && e.target.id === 'rp-notes-option-modal') {
+    e.target.style.display = 'none';
+    return;
+  }
+
+  var optBtn = e.target.closest ? e.target.closest('.rp-notes-option-btn') : null;
+  if (!optBtn) return;
+
+  var modal = document.getElementById('rp-notes-option-modal');
+  if (modal) modal.style.display = 'none';
+
+  var id = optBtn.id;
+
+  if (id === 'rp-notes-opt-todo') {
+    /* 切换到待办 Tab 并弹出输入弹窗 */
+    rpCurrentNotesTab = 'rp-todo-tab';
+    document.querySelectorAll('.rp-tab-btn').forEach(function (b) {
+      b.classList.toggle('active', b.dataset.rptab === 'rp-todo-tab');
+    });
+    document.querySelectorAll('.rp-tab-panel').forEach(function (p) {
+      p.classList.toggle('active', p.id === 'rp-todo-tab');
+    });
     rpShowTodoModal();
-  } else if (rpCurrentNotesTab === 'rp-diary-tab') {
+
+  } else if (id === 'rp-notes-opt-diary') {
+    /* 切换到日记 Tab 并 AI 生成 */
+    rpCurrentNotesTab = 'rp-diary-tab';
+    document.querySelectorAll('.rp-tab-btn').forEach(function (b) {
+      b.classList.toggle('active', b.dataset.rptab === 'rp-diary-tab');
+    });
+    document.querySelectorAll('.rp-tab-panel').forEach(function (p) {
+      p.classList.toggle('active', p.id === 'rp-diary-tab');
+    });
     rpGenerateDiary();
-  } else if (rpCurrentNotesTab === 'rp-memo-tab') {
+
+  } else if (id === 'rp-notes-opt-memo') {
+    /* 切换到随记 Tab 并 AI 生成 */
+    rpCurrentNotesTab = 'rp-memo-tab';
+    document.querySelectorAll('.rp-tab-btn').forEach(function (b) {
+      b.classList.toggle('active', b.dataset.rptab === 'rp-memo-tab');
+    });
+    document.querySelectorAll('.rp-tab-panel').forEach(function (p) {
+      p.classList.toggle('active', p.id === 'rp-memo-tab');
+    });
     rpGenerateMemo();
   }
 });
+
 
 
 
