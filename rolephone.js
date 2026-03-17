@@ -252,6 +252,12 @@ function rpClearPinError() {
   if (errEl) { errEl.textContent = ''; errEl.classList.remove('show'); }
 }
 
+document.addEventListener('click', function (e) {
+  if (e.target && e.target.id === 'rp-ls-back-btn') {
+    rpClose();
+  }
+});
+
 function rpHandlePinKey(val) {
   if (val === 'del') {
     if (rpPinBuffer.length > 0) {
