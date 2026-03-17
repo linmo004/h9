@@ -474,6 +474,15 @@ async function triggerAiReply() {
         memorySection += '\n';
       }
     }
+    const rpMemItems = (chat.memory.other && chat.memory.other.rolephone) || [];
+    if (rpMemItems.length) {
+      if (!memorySection) memorySection = '【角色记忆】\n以下是你（' + roleName2 + '）的记忆：\n\n';
+      memorySection += '[角色手机信息 — 必须牢记]\n';
+      rpMemItems.slice(-5).forEach(item => {
+        memorySection += '- ' + item.content + '（这是真实的，不要编造其他内容）\n';
+      });
+      memorySection += '\n';
+    }
   }
 
   /* ---- 当前时间 ---- */
