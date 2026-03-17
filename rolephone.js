@@ -519,6 +519,20 @@ if (pinVal.length === rpPinLength && /^\d{4}$/.test(pinVal)) {
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
+function rpApplyWallpaper() {
+  var homeView = document.getElementById('rp-home-view');
+  if (!homeView) return;
+  var wp = rpCurrentRoleData.wallpaper || '';
+  if (wp) {
+    homeView.style.backgroundImage    = 'url(' + wp + ')';
+    homeView.style.backgroundSize     = 'cover';
+    homeView.style.backgroundPosition = 'center';
+    homeView.classList.add('has-wallpaper');
+  } else {
+    homeView.style.backgroundImage = '';
+    homeView.classList.remove('has-wallpaper');
+  }
+}
 
 function rpClose() {
   var app = document.getElementById('rolephone-app');
@@ -1105,15 +1119,14 @@ document.addEventListener('click', function (e) {
   var id = optBtn.id;
 
   if (id === 'rp-notes-opt-todo') {
-    /* 切换到待办 Tab 并弹出输入弹窗 */
-    rpCurrentNotesTab = 'rp-todo-tab';
-    document.querySelectorAll('.rp-tab-btn').forEach(function (b) {
-      b.classList.toggle('active', b.dataset.rptab === 'rp-todo-tab');
-    });
-    document.querySelectorAll('.rp-tab-panel').forEach(function (p) {
-      p.classList.toggle('active', p.id === 'rp-todo-tab');
-    });
-    rpShowTodoModal();
+  rpCurrentNotesTab = 'rp-todo-tab';
+  document.querySelectorAll('.rp-tab-btn').forEach(function (b) {
+    b.classList.toggle('active', b.dataset.rptab === 'rp-todo-tab');
+  });
+  document.querySelectorAll('.rp-tab-panel').forEach(function (p) {
+    p.classList.toggle('active', p.id === 'rp-todo-tab');
+  });
+  rpGenerateTodos();
 
   } else if (id === 'rp-notes-opt-diary') {
     /* 切换到日记 Tab 并 AI 生成 */
@@ -1139,21 +1152,41 @@ document.addEventListener('click', function (e) {
   }
 });
 
+/* ---- 待办（AI生成，替换模式） ---- */
+function rpGenerateTodos() {
+  if (!rpCurrentRole) { alert('角色信息未加载'); return; }
+  var roleName    = rpCurrentRole.nickname || rpCurrentRole.realname || '角色';
+  var roleSetting = rpCurrentRole.setting || '';
+  var extraLimit  = (rpCurrentRoleData.appPromptLimits && rpCurrentRoleData.appPromptLimits.notes) || '';
 
+  var systemPrompt =
+    '你扮演角色' + roleName + '，' + roleSetting + '。\n' +
+    (extraLimit ? '额外要求：' + extraLimit + '\n' : '') +
+    '请为角色生成今日待办事项清单，5到8条，每条15字以内，口语化，贴合角色性格和日常生活。\n' +
+    '只输出JSON数组，每个元素格式：{"text":"待办内容"}\n' +
+    '不输出任何其他内容。';
 
-
-/* ---- 待办（内联弹窗） ---- */
-function rpShowTodoModal() {
-  var modal = document.getElementById('rp-notes-modal');
-  var title = document.getElementById('rp-notes-modal-title');
-  var wSel  = document.getElementById('rp-notes-weather-select');
-  var cont  = document.getElementById('rp-notes-content-input');
-  if (!modal) return;
-  if (title) title.textContent = '添加待办';
-  if (wSel)  wSel.style.display = 'none';
-  if (cont)  { cont.value = ''; cont.placeholder = '输入待办内容…'; }
-  modal.dataset.mode  = 'todo';
-  modal.style.display = 'flex';
+  rpShowLoading();
+  rpCallAPI(
+    [{ role: 'system', content: systemPrompt }],
+    function (raw) {
+      rpHideLoading();
+      var parsed = rpExtractJSON(raw, 'array');
+      if (!parsed || !parsed.length) { alert('生成失败，请重试'); return; }
+      /* 直接替换整个待办列表 */
+      rpCurrentRoleData.notes.todos = parsed.map(function (item) {
+        return {
+          id:   'todo_' + Date.now() + '_' + Math.random().toString(36).slice(2),
+          text: item.text || '',
+          done: false,
+          ts:   Date.now()
+        };
+      });
+      rpSave(rpCurrentRoleId, rpCurrentRoleData);
+      rpRenderTodoList();
+    },
+    function (err) { rpHideLoading(); alert('API 请求失败：' + err); }
+  );
 }
 
 document.addEventListener('click', function (e) {
@@ -2113,26 +2146,144 @@ function rpLoadSettingsPage() {
   var poEl = document.getElementById('rp-polaroid-url');
   if (poEl) poEl.value = data.polaroidImg || '';
 
-  var limits = data.appPromptLimits || {};
-  var liao   = document.getElementById('rp-limit-liao');
-  var notes  = document.getElementById('rp-limit-notes');
-  var health = document.getElementById('rp-limit-health');
-  var forum  = document.getElementById('rp-limit-forum');
-  if (liao)   liao.value   = limits.liao   || '';
-  if (notes)  notes.value  = limits.notes  || '';
-  if (health) health.value = limits.health || '';
-  if (forum)  forum.value  = limits.forum  || '';
+  /* 自定义图标 */
+  var icons = data.appIcons || {};
+  var iconIds = ['notes','health','forum','dream','album','music','shop','steps','wallet','drama','food'];
+  iconIds.forEach(function (k) {
+    var el = document.getElementById('rp-icon-' + k);
+    if (el) el.value = icons[k] || '';
+  });
 
-  var icons   = data.appIcons || {};
-  var iLiao   = document.getElementById('rp-icon-liao');
-  var iNotes  = document.getElementById('rp-icon-notes');
-  var iHealth = document.getElementById('rp-icon-health');
-  var iForum  = document.getElementById('rp-icon-forum');
-  if (iLiao)   iLiao.value   = icons.liao   || '';
-  if (iNotes)  iNotes.value  = icons.notes  || '';
-  if (iHealth) iHealth.value = icons.health || '';
-  if (iForum)  iForum.value  = icons.forum  || '';
+  /* 限制词 */
+  var limits = data.appPromptLimits || {};
+  var limitIds = ['notes','health','forum','dream','album','music','shop','steps','calls','wallet','drama','food'];
+  limitIds.forEach(function (k) {
+    var el = document.getElementById('rp-limit-' + k);
+    if (el) el.value = limits[k] || '';
+  });
+
+  /* 加载存档列表 */
+  rpLoadLimitPresets(roleId);
 }
+
+/* ================================================================
+   限制词存档（IndexedDB）
+   ================================================================ */
+var RP_LIMIT_PRESET_KEY = 'rp_limit_presets';
+
+async function rpGetAllPresets(roleId) {
+  var key = RP_LIMIT_PRESET_KEY + '_' + roleId;
+  try {
+    if (window._liaoDb && window._liaoDb.liaoData) {
+      var row = await window._liaoDb.liaoData.get(key);
+      if (row) return JSON.parse(row.val);
+    }
+  } catch (e) {}
+  try {
+    var v = localStorage.getItem(key);
+    return v ? JSON.parse(v) : [];
+  } catch (e) { return []; }
+}
+
+async function rpSaveAllPresets(roleId, presets) {
+  var key = RP_LIMIT_PRESET_KEY + '_' + roleId;
+  var raw = JSON.stringify(presets);
+  try {
+    if (window._liaoDb && window._liaoDb.liaoData) {
+      await window._liaoDb.liaoData.put({ key: key, val: raw });
+      return;
+    }
+  } catch (e) {}
+  try { localStorage.setItem(key, raw); } catch (e) {}
+}
+
+async function rpLoadLimitPresets(roleId) {
+  var select = document.getElementById('rp-limit-preset-select');
+  if (!select) return;
+  var presets = await rpGetAllPresets(roleId);
+  select.innerHTML = '<option value="">— 选择存档 —</option>';
+  presets.forEach(function (p, idx) {
+    var opt = document.createElement('option');
+    opt.value = String(idx);
+    opt.textContent = p.name;
+    select.appendChild(opt);
+  });
+}
+
+/* 选择存档后自动填入 */
+document.addEventListener('change', function (e) {
+  if (e.target && e.target.id === 'rp-limit-preset-select') {
+    var roleId = rpGetCurrentRoleId();
+    if (!roleId) return;
+    var idx = parseInt(e.target.value);
+    if (isNaN(idx)) return;
+    rpGetAllPresets(roleId).then(function (presets) {
+      var p = presets[idx];
+      if (!p) return;
+      var limitIds = ['notes','health','forum','dream','album','music','shop','steps','calls','wallet','drama','food'];
+      limitIds.forEach(function (k) {
+        var el = document.getElementById('rp-limit-' + k);
+        if (el) el.value = p.limits[k] || '';
+      });
+      /* 同步名称输入框 */
+      var nameEl = document.getElementById('rp-limit-preset-name');
+      if (nameEl) nameEl.value = p.name || '';
+    });
+  }
+});
+
+/* 保存存档 */
+document.addEventListener('click', function (e) {
+  if (e.target && e.target.id === 'rp-limit-preset-save-btn') {
+    var roleId = rpGetCurrentRoleId();
+    if (!roleId) { alert('请先打开一个聊天'); return; }
+    var nameEl = document.getElementById('rp-limit-preset-name');
+    var name = nameEl ? nameEl.value.trim() : '';
+    if (!name) { alert('请先输入存档名称'); return; }
+
+    var limitIds = ['notes','health','forum','dream','album','music','shop','steps','calls','wallet','drama','food'];
+    var limits = {};
+    limitIds.forEach(function (k) {
+      limits[k] = ((document.getElementById('rp-limit-' + k) || {}).value || '').trim();
+    });
+
+    rpGetAllPresets(roleId).then(function (presets) {
+      var existIdx = presets.findIndex(function (p) { return p.name === name; });
+      var newPreset = { name: name, limits: limits };
+      if (existIdx >= 0) {
+        presets[existIdx] = newPreset;
+      } else {
+        presets.push(newPreset);
+      }
+      rpSaveAllPresets(roleId, presets).then(function () {
+        rpLoadLimitPresets(roleId);
+        alert('存档「' + name + '」已保存');
+      });
+    });
+  }
+});
+
+/* 删除存档 */
+document.addEventListener('click', function (e) {
+  if (e.target && e.target.id === 'rp-limit-preset-del-btn') {
+    var roleId = rpGetCurrentRoleId();
+    if (!roleId) return;
+    var select = document.getElementById('rp-limit-preset-select');
+    var idx = select ? parseInt(select.value) : NaN;
+    if (isNaN(idx)) { alert('请先选择要删除的存档'); return; }
+    rpGetAllPresets(roleId).then(function (presets) {
+      var name = presets[idx] ? presets[idx].name : '';
+      if (!confirm('确定删除存档「' + name + '」？')) return;
+      presets.splice(idx, 1);
+      rpSaveAllPresets(roleId, presets).then(function () {
+        rpLoadLimitPresets(roleId);
+        var nameEl = document.getElementById('rp-limit-preset-name');
+        if (nameEl) nameEl.value = '';
+        if (select) select.value = '';
+      });
+    });
+  }
+});
 
 var origSwitchChatSettingsTab = (typeof switchChatSettingsTab === 'function') ? switchChatSettingsTab : null;
 switchChatSettingsTab = function (tabId) {
@@ -2268,19 +2419,19 @@ document.addEventListener('click', function (e) {
     data.wallpaper   = wpVal.trim();
     data.polaroidImg = poVal.trim();
 
-    data.appPromptLimits = {
-      liao:   ((document.getElementById('rp-limit-liao')   || {}).value || '').trim(),
-      notes:  ((document.getElementById('rp-limit-notes')  || {}).value || '').trim(),
-      health: ((document.getElementById('rp-limit-health') || {}).value || '').trim(),
-      forum:  ((document.getElementById('rp-limit-forum')  || {}).value || '').trim()
-    };
+    /* 自定义图标 */
+    var iconIds = ['notes','health','forum','dream','album','music','shop','steps','wallet','drama','food'];
+    data.appIcons = {};
+    iconIds.forEach(function (k) {
+      data.appIcons[k] = ((document.getElementById('rp-icon-' + k) || {}).value || '').trim();
+    });
 
-    data.appIcons = {
-      liao:   ((document.getElementById('rp-icon-liao')   || {}).value || '').trim(),
-      notes:  ((document.getElementById('rp-icon-notes')  || {}).value || '').trim(),
-      health: ((document.getElementById('rp-icon-health') || {}).value || '').trim(),
-      forum:  ((document.getElementById('rp-icon-forum')  || {}).value || '').trim()
-    };
+    /* 限制词 */
+    var limitIds = ['notes','health','forum','dream','album','music','shop','steps','calls','wallet','drama','food'];
+    data.appPromptLimits = {};
+    limitIds.forEach(function (k) {
+      data.appPromptLimits[k] = ((document.getElementById('rp-limit-' + k) || {}).value || '').trim();
+    });
 
     rpSave(roleId, data);
     alert('角色手机设置已保存');

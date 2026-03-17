@@ -374,89 +374,151 @@
       </div>
     </div>
 
-    <!-- 第四页：角色手机设置 -->
-    <div class="cs-page" id="cs-tab-rolephone-page">
-      <div class="cs-page-scroll">
+   <!-- 第四页：角色手机设置 -->
+<div class="cs-page" id="cs-tab-rolephone-page">
+  <div class="cs-page-scroll">
 
-        <!-- 密码设置 -->
-        <div class="cs-section-title">手机密码</div>
-        <div class="cs-section-card">
-          <div style="font-size:12px;color:var(--text-mid);margin-bottom:10px;line-height:1.6;">
-            当前密码状态：<span id="rp-pin-status" style="font-weight:600;color:var(--primary);">未设置</span>
-          </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="liao-btn-primary" id="rp-ai-gen-pin-btn" style="flex:1;">✦ AI 生成密码</button>
-            <button class="liao-btn-ghost" id="rp-manual-pin-btn" style="flex:1;">手动设置密码</button>
-            <button class="liao-btn-ghost" id="rp-clear-pin-btn"
-              style="flex:1;color:#e07a7a;border-color:rgba(224,122,122,0.35);">清除密码</button>
-          </div>
-          <div id="rp-pin-msg" style="font-size:11px;margin-top:8px;min-height:16px;color:#4caf84;"></div>
-        </div>
+    <!-- 密码设置 -->
+    <div class="cs-section-title">手机密码</div>
+    <div class="cs-section-card">
+      <div style="font-size:12px;color:var(--text-mid);margin-bottom:10px;line-height:1.6;">
+        当前密码状态：<span id="rp-pin-status" style="font-weight:600;color:var(--primary);">未设置</span>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="liao-btn-primary" id="rp-ai-gen-pin-btn" style="flex:1;">✦ AI 生成密码</button>
+        <button class="liao-btn-ghost" id="rp-manual-pin-btn" style="flex:1;">手动设置密码</button>
+        <button class="liao-btn-ghost" id="rp-clear-pin-btn"
+          style="flex:1;color:#e07a7a;border-color:rgba(224,122,122,0.35);">清除密码</button>
+      </div>
+      <div id="rp-pin-msg" style="font-size:11px;margin-top:8px;min-height:16px;color:#4caf84;"></div>
+    </div>
 
-        <!-- 手机美化 -->
-        <div class="cs-section-title">手机美化</div>
-        <div class="cs-section-card">
-
-          <label class="liao-modal-label">主页壁纸</label>
-          <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
-            <input class="liao-modal-input" id="rp-wallpaper-url" placeholder="输入壁纸图片 URL…"
-              style="flex:1;margin-bottom:0;">
-            <button class="liao-avatar-btn" id="rp-wallpaper-local-btn" style="white-space:nowrap;">本地上传</button>
-            <input type="file" id="rp-wallpaper-file" accept="image/*" style="display:none;">
-          </div>
-
-          <label class="liao-modal-label">拍立得图片</label>
-          <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
-            <input class="liao-modal-input" id="rp-polaroid-url" placeholder="输入拍立得图片 URL…"
-              style="flex:1;margin-bottom:0;">
-            <button class="liao-avatar-btn" id="rp-polaroid-local-btn" style="white-space:nowrap;">本地上传</button>
-            <input type="file" id="rp-polaroid-file" accept="image/*" style="display:none;">
-          </div>
-        </div>
-
-        <!-- 各 App 限制词 -->
-        <div class="cs-section-title">各 App AI 限制词</div>
-        <div class="cs-section-card">
-          <div style="font-size:11px;color:var(--text-light);margin-bottom:10px;line-height:1.6;">
-            为各 App 设置额外的提示词限制，会追加到 AI 生成指令中。
-          </div>
-          <label class="liao-modal-label">了了 App</label>
-          <textarea class="liao-modal-textarea" id="rp-limit-liao"
-            placeholder="例如：生成的聊天内容不得涉及…" style="min-height:60px;"></textarea>
-          <label class="liao-modal-label">便签 App</label>
-          <textarea class="liao-modal-textarea" id="rp-limit-notes"
-            placeholder="例如：日记内容风格要…" style="min-height:60px;"></textarea>
-          <label class="liao-modal-label">屏幕健康 App</label>
-          <textarea class="liao-modal-textarea" id="rp-limit-health"
-            placeholder="例如：某 App 使用时长不超过…" style="min-height:60px;"></textarea>
-          <label class="liao-modal-label">趣问 App</label>
-          <textarea class="liao-modal-textarea" id="rp-limit-forum"
-            placeholder="例如：帖子话题倾向于…" style="min-height:60px;"></textarea>
-        </div>
-
-        <!-- 自定义 App 图标 -->
-        <div class="cs-section-title">自定义 App 图标</div>
-        <div class="cs-section-card">
-          <div style="font-size:11px;color:var(--text-light);margin-bottom:10px;line-height:1.6;">
-            输入图标图片 URL，留空则使用默认 emoji 图标。
-          </div>
-          <label class="liao-modal-label">了了图标 URL</label>
-          <input class="liao-modal-input" id="rp-icon-liao" placeholder="https://…">
-          <label class="liao-modal-label">便签图标 URL</label>
-          <input class="liao-modal-input" id="rp-icon-notes" placeholder="https://…">
-          <label class="liao-modal-label">屏幕健康图标 URL</label>
-          <input class="liao-modal-input" id="rp-icon-health" placeholder="https://…">
-          <label class="liao-modal-label">趣问图标 URL</label>
-          <input class="liao-modal-input" id="rp-icon-forum" placeholder="https://…">
-        </div>
-
-        <!-- 保存按钮 -->
-        <div style="margin-top:16px;padding:0 0 20px;">
-          <button class="liao-btn-primary" id="rp-settings-save-btn" style="width:100%;">保存角色手机设置</button>
-        </div>
-
+    <!-- 手机美化 -->
+    <div class="cs-section-title">手机美化</div>
+    <div class="cs-section-card">
+      <label class="liao-modal-label">主页壁纸</label>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+        <input class="liao-modal-input" id="rp-wallpaper-url" placeholder="输入壁纸图片 URL…"
+          style="flex:1;margin-bottom:0;">
+        <button class="liao-avatar-btn" id="rp-wallpaper-local-btn" style="white-space:nowrap;">本地上传</button>
+        <input type="file" id="rp-wallpaper-file" accept="image/*" style="display:none;">
+      </div>
+      <label class="liao-modal-label">拍立得图片</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input class="liao-modal-input" id="rp-polaroid-url" placeholder="输入拍立得图片 URL…"
+          style="flex:1;margin-bottom:0;">
+        <button class="liao-avatar-btn" id="rp-polaroid-local-btn" style="white-space:nowrap;">本地上传</button>
+        <input type="file" id="rp-polaroid-file" accept="image/*" style="display:none;">
       </div>
     </div>
+
+    <!-- 自定义 App 图标 -->
+    <div class="cs-section-title">自定义 App 图标</div>
+    <div class="cs-section-card">
+      <div style="font-size:11px;color:var(--text-light);margin-bottom:10px;line-height:1.6;">
+        输入图标图片 URL，留空则使用默认图标。
+      </div>
+      <label class="liao-modal-label">便签图标 URL</label>
+      <input class="liao-modal-input" id="rp-icon-notes" placeholder="https://…">
+      <label class="liao-modal-label">屏幕健康图标 URL</label>
+      <input class="liao-modal-input" id="rp-icon-health" placeholder="https://…">
+      <label class="liao-modal-label">趣问图标 URL</label>
+      <input class="liao-modal-input" id="rp-icon-forum" placeholder="https://…">
+      <label class="liao-modal-label">梦境图标 URL</label>
+      <input class="liao-modal-input" id="rp-icon-dream" placeholder="https://…">
+      <label class="liao-modal-label">相册图标 URL</label>
+      <input class="liao-modal-input" id="rp-icon-album" placeholder="https://…">
+      <label class="liao-modal-label">音乐图标 URL</label>
+      <input class="liao-modal-input" id="rp-icon-music" placeholder="https://…">
+      <label class="liao-modal-label">购物车图标 URL</label>
+      <input class="liao-modal-input" id="rp-icon-shop" placeholder="https://…">
+      <label class="liao-modal-label">步数图标 URL</label>
+      <input class="liao-modal-input" id="rp-icon-steps" placeholder="https://…">
+      <label class="liao-modal-label">钱包图标 URL</label>
+      <input class="liao-modal-input" id="rp-icon-wallet" placeholder="https://…">
+      <label class="liao-modal-label">追剧图标 URL</label>
+      <input class="liao-modal-input" id="rp-icon-drama" placeholder="https://…">
+      <label class="liao-modal-label">外卖图标 URL</label>
+      <input class="liao-modal-input" id="rp-icon-food" placeholder="https://…">
+    </div>
+
+    <!-- 各 App AI 限制词 -->
+    <div class="cs-section-title">各 App AI 限制词</div>
+    <div class="cs-section-card">
+      <div style="font-size:11px;color:var(--text-light);margin-bottom:10px;line-height:1.6;">
+        为各 App 设置额外的提示词限制，会追加到 AI 生成指令中。支持存档，可保存多套方案。
+      </div>
+
+      <!-- 存档选择器 -->
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
+        <select class="liao-modal-input" id="rp-limit-preset-select" style="flex:1;margin-bottom:0;">
+          <option value="">— 选择存档 —</option>
+        </select>
+        <button class="liao-avatar-btn" id="rp-limit-preset-save-btn" style="white-space:nowrap;">保存存档</button>
+        <button class="liao-avatar-btn" id="rp-limit-preset-del-btn"
+          style="white-space:nowrap;color:#e07a7a;border-color:rgba(224,122,122,0.35);">删除</button>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;">
+        <input class="liao-modal-input" id="rp-limit-preset-name" placeholder="输入存档名称…"
+          style="flex:1;margin-bottom:0;">
+      </div>
+
+      <label class="liao-modal-label">便签 App（待办/日记/随记）</label>
+      <textarea class="liao-modal-textarea" id="rp-limit-notes"
+        placeholder="例如：日记内容风格要…" style="min-height:60px;"></textarea>
+
+      <label class="liao-modal-label">屏幕健康 App</label>
+      <textarea class="liao-modal-textarea" id="rp-limit-health"
+        placeholder="例如：某 App 使用时长不超过…" style="min-height:60px;"></textarea>
+
+      <label class="liao-modal-label">趣问 App</label>
+      <textarea class="liao-modal-textarea" id="rp-limit-forum"
+        placeholder="例如：帖子话题倾向于…" style="min-height:60px;"></textarea>
+
+      <label class="liao-modal-label">梦境 App</label>
+      <textarea class="liao-modal-textarea" id="rp-limit-dream"
+        placeholder="例如：梦境风格要奇幻…" style="min-height:60px;"></textarea>
+
+      <label class="liao-modal-label">相册 App</label>
+      <textarea class="liao-modal-textarea" id="rp-limit-album"
+        placeholder="例如：照片场景偏向…" style="min-height:60px;"></textarea>
+
+      <label class="liao-modal-label">音乐 App</label>
+      <textarea class="liao-modal-textarea" id="rp-limit-music"
+        placeholder="例如：只生成日系歌曲…" style="min-height:60px;"></textarea>
+
+      <label class="liao-modal-label">购物车 App</label>
+      <textarea class="liao-modal-textarea" id="rp-limit-shop"
+        placeholder="例如：商品偏向生活类…" style="min-height:60px;"></textarea>
+
+      <label class="liao-modal-label">步数 App</label>
+      <textarea class="liao-modal-textarea" id="rp-limit-steps"
+        placeholder="例如：步数不超过8000…" style="min-height:60px;"></textarea>
+
+      <label class="liao-modal-label">通话记录 App</label>
+      <textarea class="liao-modal-textarea" id="rp-limit-calls"
+        placeholder="例如：联系人以家人为主…" style="min-height:60px;"></textarea>
+
+      <label class="liao-modal-label">钱包 App</label>
+      <textarea class="liao-modal-textarea" id="rp-limit-wallet"
+        placeholder="例如：消费以日常为主…" style="min-height:60px;"></textarea>
+
+      <label class="liao-modal-label">追剧 App</label>
+      <textarea class="liao-modal-textarea" id="rp-limit-drama"
+        placeholder="例如：只追日漫…" style="min-height:60px;"></textarea>
+
+      <label class="liao-modal-label">外卖 App</label>
+      <textarea class="liao-modal-textarea" id="rp-limit-food"
+        placeholder="例如：偏向轻食健康…" style="min-height:60px;"></textarea>
+    </div>
+
+    <!-- 保存按钮 -->
+    <div style="margin-top:16px;padding:0 0 20px;">
+      <button class="liao-btn-primary" id="rp-settings-save-btn" style="width:100%;">保存角色手机设置</button>
+    </div>
+
+  </div>
+</div>
 
   </div>
 </div>

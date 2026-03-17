@@ -1407,3 +1407,11 @@
   transition: background 0.12s;
 }
 .rp-notes-option-btn:active { background: #e5e5ea; }
+
+/* ================================================================
+   壁纸全屏修正
+   ================================================================ */
+#rp-home-view.has-wallpaper .rp-status-bar,
+#rp-home-view.has-wallpaper .rp-home-body {
+  background: transparent !important;
+}
