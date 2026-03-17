@@ -21,6 +21,8 @@ function renderSuiyan() {
   [...liaoSuiyan].reverse().forEach((post, revIdx) => {
     const realIdx = liaoSuiyan.length - 1 - revIdx;
     list.appendChild(buildSuiyanItem(post, realIdx));
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+
   });
 }
 
@@ -30,12 +32,20 @@ function buildSuiyanItem(post, idx) {
   const likedByUser = post.likedBy && post.likedBy.includes('user');
 
   let commentsHtml = '';
-  if (post.comments && post.comments.length) {
-    const rows = post.comments.map(c =>
-      `<div class="suiyan-comment-item"><span class="suiyan-comment-author">${escHtml(c.author)}：</span>${escHtml(c.text)}</div>`
-    ).join('');
+    if (post.comments && post.comments.length) {
+    const rows = post.comments.map((c, cidx) => {
+      const replyTag = c.isReply
+        ? `<span style="font-size:10px;color:#9aafc4;margin-right:3px;">↩回复</span>`
+        : '';
+      return `<div class="suiyan-comment-item" style="display:flex;align-items:center;justify-content:space-between;">
+        <div><span class="suiyan-comment-author">${escHtml(c.author)}：</span>${replyTag}${escHtml(c.text)}</div>
+        <button class="delete-comment-btn" data-post-idx="${idx}" data-comment-idx="${cidx}" style="background:none;border:none;cursor:pointer;flex-shrink:0;padding:0 0 0 8px;"><i data-lucide="x" style="width:12px;height:12px;stroke:#e07a7a;display:block;"></i></button>
+
+      </div>`;
+    }).join('');
     commentsHtml = `<div class="suiyan-comments">${rows}</div>`;
   }
+
 
   // 媒体内容（图片等）
   let mediaHtml = '';
@@ -62,6 +72,7 @@ function buildSuiyanItem(post, idx) {
         <span class="action-icon">○</span>
         <span>${post.comments ? post.comments.length : 0}</span>
       </button>
+      <button class="suiyan-action-btn delete-post-btn" data-idx="${idx}" style="margin-left:auto;color:#e07a7a;"><i data-lucide="x" style="width:14px;height:14px;stroke:#e07a7a;"></i></button>
     </div>
     ${commentsHtml}`;
 
@@ -78,12 +89,27 @@ function buildSuiyanItem(post, idx) {
     }
     lSave('suiyan', liaoSuiyan);
     renderSuiyan();
-    // 用户点赞后，角色有概率互动
-    if (typeof scheduleRoleInteractSuiyan === 'function') scheduleRoleInteractSuiyan();
   });
 
   div.querySelector('.comment-btn').addEventListener('click', function () {
     openCommentModal(parseInt(this.dataset.idx));
+  });
+  div.querySelector('.delete-post-btn').addEventListener('click', function () {
+    if (!confirm('确定删除这条随言？')) return;
+    const i = parseInt(this.dataset.idx);
+    liaoSuiyan.splice(i, 1);
+    lSave('suiyan', liaoSuiyan);
+    renderSuiyan();
+  });
+  div.querySelectorAll('.delete-comment-btn').forEach(btn => {
+    btn.addEventListener('click', function () {
+      if (!confirm('确定删除这条评论？')) return;
+      const pi = parseInt(this.dataset.postIdx);
+      const ci = parseInt(this.dataset.commentIdx);
+      liaoSuiyan[pi].comments.splice(ci, 1);
+      lSave('suiyan', liaoSuiyan);
+      renderSuiyan();
+    });
   });
 
   return div;
@@ -206,10 +232,6 @@ document.getElementById('liao-post-confirm').addEventListener('click', () => {
   lSave('suiyan', liaoSuiyan);
   document.getElementById('liao-post-modal').classList.remove('show');
   renderSuiyan();
-  // 发完随言后，角色有概率互动
-  if (typeof scheduleRoleInteractSuiyan === 'function') {
-    setTimeout(scheduleRoleInteractSuiyan, 1500);
-  }
 });
 
 document.getElementById('liao-post-cancel').addEventListener('click', () => {
@@ -244,7 +266,7 @@ document.getElementById('liao-comment-confirm').addEventListener('click', () => 
   const text = document.getElementById('liao-comment-input').value.trim();
   if (!text || commentTargetIdx < 0) return;
   if (!liaoSuiyan[commentTargetIdx].comments) liaoSuiyan[commentTargetIdx].comments = [];
-  liaoSuiyan[commentTargetIdx].comments.push({ author: liaoUserName, text });
+  liaoSuiyan[commentTargetIdx].comments.push({ author: liaoUserName, text, isUser: true });
   lSave('suiyan', liaoSuiyan);
   document.getElementById('liao-comment-modal').classList.remove('show');
   renderSuiyan();

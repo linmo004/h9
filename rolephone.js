@@ -1299,14 +1299,19 @@ window.RolePhone = {
       : e.target.closest && e.target.closest('#csb-rolephone');
     if (!btn) return;
 
-    if (typeof currentChatIdx === 'undefined' || currentChatIdx < 0) {
-      alert('请先打开一个聊天'); return;
+    if (!window._liaoDataReady) {
+      alert('数据加载中，请稍后再试');
+      return;
     }
-    if (typeof liaoChats === 'undefined' || typeof liaoRoles === 'undefined') {
-      alert('数据未加载'); return;
+    if (typeof currentChatIdx === 'undefined' || currentChatIdx < 0) {
+      alert('请先打开一个聊天');
+      return;
     }
     var chat = liaoChats[currentChatIdx];
-    if (!chat) { alert('请先打开一个聊天'); return; }
+    if (!chat) {
+      alert('请先打开一个聊天');
+      return;
+    }
     rpOpen(chat.roleId);
   });
 })();
@@ -1507,7 +1512,7 @@ document.addEventListener('click', function (e) {
     data.appIcons = {
       liao:   ((document.getElementById('rp-icon-liao')   || {}).value || '').trim(),
       notes:  ((document.getElementById('rp-icon-notes')  || {}).value || '').trim(),
-      health: ((document.getElementById('rp-icon-health') || {}){}).value || '').trim(),
+      health: ((document.getElementById('rp-icon-health') || {}).value || '').trim(),
       forum:  ((document.getElementById('rp-icon-forum')  || {}).value || '').trim()
     };
 

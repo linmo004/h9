@@ -283,8 +283,8 @@ document.getElementById('carousel-cancel-btn').addEventListener('click', functio
    ============================================================ */
 let avatarTab = 'url';
 
-(function restoreAvatar() {
-  const av = load('userAvatar', null);
+(async function restoreAvatar() {
+  const av = await imgLoad('userAvatar', null) || load('userAvatar', null);
   if (av) document.getElementById('user-avatar').src = av;
 })();
 
@@ -321,9 +321,13 @@ document.getElementById('avatar-confirm-btn').addEventListener('click', function
     const file = document.getElementById('avatar-file-input').files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = e => {
-      document.getElementById('user-avatar').src = e.target.result;
-      save('userAvatar', e.target.result);
+    reader.onload = async e => {
+  const compressed = typeof compressImage === 'function'
+    ? await compressImage(e.target.result, 300, 0.85)
+    : e.target.result;
+  document.getElementById('user-avatar').src = compressed;
+  await imgSave('userAvatar', compressed);
+  localStorage.removeItem('halo9_userAvatar');
       document.getElementById('avatar-modal').classList.remove('show');
       const p2av = document.getElementById('p2-uc-avatar');
       if (p2av) p2av.src = e.target.result;
@@ -375,14 +379,21 @@ let msgData = load('msgData', [
 ]);
 let msgEditIdx = 0, msgTab = 'url';
 
-function renderMsgWidget() {
-  msgData.forEach((data, idx) => {
+async function renderMsgWidget() {
+  for (let idx = 0; idx < msgData.length; idx++) {
+    const data    = msgData[idx];
     const avatarEl  = document.getElementById('msg-avatar-'  + idx);
     const bubblesEl = document.getElementById('msg-bubbles-' + idx);
-    if (avatarEl)  avatarEl.src = data.avatar;
+    if (avatarEl) {
+      let src = data.avatar;
+      if (src && src.startsWith('__idb__')) {
+        src = await imgLoad(src.replace('__idb__', ''), null) || '';
+      }
+      avatarEl.src = src;
+    }
     if (bubblesEl) bubblesEl.innerHTML =
       data.messages.map(msg => `<div class="msg-bubble">${msg}</div>`).join('');
-  });
+  }
 }
 renderMsgWidget();
 
@@ -439,9 +450,14 @@ document.getElementById('msg-confirm-btn').addEventListener('click', function() 
       return;
     }
     const reader = new FileReader();
-    reader.onload = e => {
-      msgData[msgEditIdx].avatar = e.target.result;
-      save('msgData', msgData);
+    reader.onload = async e => {
+  const compressed = typeof compressImage === 'function'
+    ? await compressImage(e.target.result, 200, 0.80)
+    : e.target.result;
+  const idbKey = 'msgAvatar_' + msgEditIdx;
+  await imgSave(idbKey, compressed);
+  msgData[msgEditIdx].avatar = '__idb__' + idbKey;
+  save('msgData', msgData);
       renderMsgWidget();
       document.getElementById('msg-modal').classList.remove('show');
     };
@@ -615,25 +631,27 @@ function closeP2ImgModal() {
   p2ModalPending = '';
 }
 
-function applyP2Image(src) {
+async function applyP2Image(src) {
   if (!src || !p2ModalTarget) return;
+
+  const isBase64 = src.startsWith('data:');
 
   if (p2ModalTarget === 'ucbg') {
     const bgEl = document.getElementById('p2-uc-bg');
     if (bgEl) bgEl.style.backgroundImage = 'url(' + src + ')';
-    save('p2UcBg', src);
+    if (isBase64) { await imgSave('p2UcBg', src); localStorage.setItem('halo9_p2UcBg', '__idb__'); }
+    else { save('p2UcBg', src); imgDelete('p2UcBg'); }
 
   } else if (p2ModalTarget === 'album') {
     const bgEl = document.getElementById('p2-album-bg');
     if (bgEl) bgEl.style.backgroundImage = 'url(' + src + ')';
-    save('p2AlbumBg', src);
+    if (isBase64) { await imgSave('p2AlbumBg', src); localStorage.setItem('halo9_p2AlbumBg', '__idb__'); }
+    else { save('p2AlbumBg', src); imgDelete('p2AlbumBg'); }
 
   } else if (p2ModalTarget === 'cdimg') {
-    /* CD 图片叠加在 r3 层上 */
     const cdEl = document.getElementById('p2-cd');
     if (cdEl) {
       cdEl.style.setProperty('--cd-img', 'url(' + src + ')');
-      /* 直接把 r3 背景改为用户图片 */
       const r3 = cdEl.querySelector('.p2-cd-r3');
       if (r3) {
         r3.style.backgroundImage = 'url(' + src + ')';
@@ -641,7 +659,8 @@ function applyP2Image(src) {
         r3.style.backgroundPosition = 'center';
       }
     }
-    save('p2CdImg', src);
+    if (isBase64) { await imgSave('p2CdImg', src); localStorage.setItem('halo9_p2CdImg', '__idb__'); }
+    else { save('p2CdImg', src); imgDelete('p2CdImg'); }
 
   } else if (p2ModalTarget.startsWith('card-')) {
     const idx   = parseInt(p2ModalTarget.split('-')[1]);
@@ -652,16 +671,23 @@ function applyP2Image(src) {
       const empty = imgEl.nextElementSibling;
       if (empty) empty.style.display = 'none';
     }
-    p2CardUrls[idx] = src;
+    if (isBase64) {
+      await imgSave('p2Card_' + idx, src);
+      p2CardUrls[idx] = '__idb__' + idx;
+    } else {
+      p2CardUrls[idx] = src;
+      imgDelete('p2Card_' + idx);
+    }
     save('page2Cards', p2CardUrls);
   }
   closeP2ImgModal();
 }
 
-document.getElementById('p2-img-modal-confirm').addEventListener('click', function() {
-  if (p2ModalPending) { applyP2Image(p2ModalPending); return; }
+
+document.getElementById('p2-img-modal-confirm').addEventListener('click', async function() {
+  if (p2ModalPending) { await applyP2Image(p2ModalPending); return; }
   const url = document.getElementById('p2-img-modal-url').value.trim();
-  if (url) { p2ModalPending = url; applyP2Image(url); return; }
+  if (url) { p2ModalPending = url; await applyP2Image(url); return; }
   alert('请输入图片URL或选择本地文件');
 });
 
@@ -673,9 +699,9 @@ document.getElementById('p2-img-modal-file').addEventListener('change', function
   const file = this.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = function(e) {
+  reader.onload = async function(e) {
     p2ModalPending = e.target.result;
-    applyP2Image(e.target.result);
+    await applyP2Image(e.target.result);
   };
   reader.readAsDataURL(file);
   this.value = '';
@@ -692,11 +718,14 @@ document.getElementById('p2-img-modal').addEventListener('click', function(e) {
    ============================================================ */
 (function initP2UserCard() {
   /* 恢复背景 */
-  const bg = load('p2UcBg', null);
-  if (bg) {
-    const bgEl = document.getElementById('p2-uc-bg');
-    if (bgEl) bgEl.style.backgroundImage = 'url(' + bg + ')';
-  }
+  (async () => {
+    let bg = localStorage.getItem('halo9_p2UcBg');
+    if (bg === '__idb__') bg = await imgLoad('p2UcBg', null);
+    if (bg && bg !== '__idb__') {
+      const bgEl = document.getElementById('p2-uc-bg');
+      if (bgEl) bgEl.style.backgroundImage = 'url(' + bg + ')';
+    }
+  })();
 
   /* 同步头像 */
   const av   = load('userAvatar', null);
@@ -881,15 +910,18 @@ document.getElementById('p2-img-modal').addEventListener('click', function(e) {
 var p2CardUrls = load('page2Cards', ['', '', '', '']);
 
 (function initP2Cards() {
-  p2CardUrls.forEach(function(url, idx) {
-    if (!url) return;
-    const imgEl = document.getElementById('p2-card-img-' + idx);
-    if (!imgEl) return;
-    imgEl.src = url;
-    imgEl.style.display = 'block';
-    const empty = imgEl.nextElementSibling;
-    if (empty) empty.style.display = 'none';
-  });
+  p2CardUrls.forEach(async function(url, idx) {
+  if (!url) return;
+  let src = url;
+  if (src.startsWith('__idb__')) src = await imgLoad('p2Card_' + idx, null) || '';
+  if (!src) return;
+  const imgEl = document.getElementById('p2-card-img-' + idx);
+  if (!imgEl) return;
+  imgEl.src = src;
+  imgEl.style.display = 'block';
+  const empty = imgEl.nextElementSibling;
+  if (empty) empty.style.display = 'none';
+});
 
   const widget = document.getElementById('p2-cards-widget');
   if (widget) {
@@ -907,11 +939,14 @@ var p2CardUrls = load('page2Cards', ['', '', '', '']);
    ============================================================ */
 (function initP2Album() {
   /* 恢复专辑背景 */
-  const bg = load('p2AlbumBg', null);
-  if (bg) {
-    const bgEl = document.getElementById('p2-album-bg');
-    if (bgEl) bgEl.style.backgroundImage = 'url(' + bg + ')';
-  }
+  (async () => {
+    let bg = localStorage.getItem('halo9_p2AlbumBg');
+    if (bg === '__idb__') bg = await imgLoad('p2AlbumBg', null);
+    if (bg && bg !== '__idb__') {
+      const bgEl = document.getElementById('p2-album-bg');
+      if (bgEl) bgEl.style.backgroundImage = 'url(' + bg + ')';
+    }
+  })();
 
   /* 点击专辑主体换封面 */
   const albumWidget = document.getElementById('p2-album-widget');
@@ -923,15 +958,18 @@ var p2CardUrls = load('page2Cards', ['', '', '', '']);
   }
 
   /* 恢复 CD 图片 */
-  const cdImg = load('p2CdImg', null);
-  if (cdImg) {
-    const r3 = document.querySelector('#p2-cd .p2-cd-r3');
-    if (r3) {
-      r3.style.backgroundImage    = 'url(' + cdImg + ')';
-      r3.style.backgroundSize     = 'cover';
-      r3.style.backgroundPosition = 'center';
+  (async () => {
+    let cdImg = localStorage.getItem('halo9_p2CdImg');
+    if (cdImg === '__idb__') cdImg = await imgLoad('p2CdImg', null);
+    if (cdImg && cdImg !== '__idb__') {
+      const r3 = document.querySelector('#p2-cd .p2-cd-r3');
+      if (r3) {
+        r3.style.backgroundImage    = 'url(' + cdImg + ')';
+        r3.style.backgroundSize     = 'cover';
+        r3.style.backgroundPosition = 'center';
+      }
     }
-  }
+  })();
 
   /* 点击 CD 非金属区换 CD 图（r3、r4 可点击） */
   const cdClickable = document.getElementById('p2-cd-clickable');
